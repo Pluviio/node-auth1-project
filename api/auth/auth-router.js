@@ -116,13 +116,13 @@ router.get('/logout', async (req, res, next) => {
       } else {
         // set a cookie in the past
         res.json({
-          message: `goodbye, nice having you!`
+          message: 'logged out'
         })
       }
     })
   } else {
     res.json({
-       message: 'you were not logged in to begin with!'
+       message: 'no session'
     })
   }
 })
