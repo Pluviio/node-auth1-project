@@ -1,7 +1,18 @@
 // Require `checkUsernameFree`, `checkUsernameExists` and `checkPasswordLength`
 // middleware functions from `auth-middleware.js`. You will need them here!
 
+const router = require('express').Router()
+const Users = require('../users/users-model')
+const bcrypt = require('bcryptjs')
 
+
+const {
+
+  checkUsernameFree,
+  checkPasswordLength,
+  checkUsernameExists
+
+} = require('./auth-middleware')
 /**
   1 [POST] /api/auth/register { "username": "sue", "password": "1234" }
 
@@ -25,6 +36,24 @@
   }
  */
 
+router.post('/register', checkUsernameFree, checkPasswordLength, async (req, res, next) => {
+
+  try {
+
+    const { username, password } = req.body
+    const hash = bcrypt.hashSync(password, 2)
+    const user = { username, password: hash }
+
+    const result = await Users.add(user)
+
+    res.status(200).json({
+      'user_id': result.user_id,
+      'username': result.username
+    })
+  } catch (err) {
+    next(err)
+  }
+})
 
 /**
   2 [POST] /api/auth/login { "username": "sue", "password": "1234" }
@@ -42,6 +71,24 @@
   }
  */
 
+  router.post('/login', checkUsernameExists, async (req, res) => {
+    try {
+      const { username, password } = req.body
+      const user = await Users.findBy({ username }).first()
+      if(user && bcrypt.compareSync(password, user.password)) {
+        req.session.user = user 
+        console.log(req.cookies)
+
+        // res.cookie("chocolatechip", {name: 'chocolatechip'}, {maxAge: 6000}).status(200).json({ message: `welcome ${user.username}` })
+        res.status(200).json({ message: `welcome ${user.username}` })
+      } else {
+        res.status(401).json({ message: "Invalid credentials" })
+      }
+    } catch (err) {
+      res.status(500).json(err)
+    }
+  })
+
 
 /**
   3 [GET] /api/auth/logout
@@ -58,6 +105,28 @@
     "message": "no session"
   }
  */
+router.get('/logout', async (req, res, next) => {
 
- 
+  if (req.session.user) {
+    req.session.destroy((err) => {
+      if (err) {
+        res.json({
+          message: 'you cannot leave!'
+        })
+      } else {
+        // set a cookie in the past
+        res.json({
+          message: `goodbye, nice having you!`
+        })
+      }
+    })
+  } else {
+    res.json({
+       message: 'you were not logged in to begin with!'
+    })
+  }
+})
+
 // Don't forget to add the router to the `exports` object so it can be required in other modules
+
+module.exports = router;
